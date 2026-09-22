@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAESTRO ARCADE // WEB HUB</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #090a0f;
+            --surface: #12151f;
+            --surface-hover: #181d2c;
+            --border: #23293d;
+            --accent: #ff4757;
+            --accent-glow: rgba(255, 71, 87, 0.35);
+            --text-main: #f1f2f6;
+            --text-muted: #8b92a8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            font-family: 'Space Grotesk', -apple-system, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Ambient glowing background */
+        .bg-glow {
+            position: fixed;
+            top: -20%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 800px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(255, 71, 87, 0.12) 0%, transparent 70%);
+            filter: blur(100px);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        header {
+            position: relative;
+            z-index: 10;
+            padding: 2.5rem 2rem 1.5rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo-area h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -0.05em;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .logo-area h1 span {
+            color: var(--accent);
+            text-shadow: 0 0 16px var(--accent-glow);
+        }
+
+        .logo-area p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-top: 0.3rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .badge-online {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: #2ed573;
+            background: rgba(46, 213, 115, 0.1);
+            border: 1px solid rgba(46, 213, 115, 0.3);
+            padding: 0.35rem 0.8rem;
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .badge-online::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #2ed573;
+            box-shadow: 0 0 8px #2ed573;
+        }
+
+        main {
+            position: relative;
+            z-index: 10;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 3rem 2rem;
+            width: 100%;
+            flex-grow: 1;
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .section-title::after {
+            content: '';
+            flex-grow: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 2rem;
+        }
+
+        .game-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            cursor: pointer;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .game-card:hover {
+            transform: translateY(-6px);
+            border-color: var(--accent);
+            box-shadow: 0 12px 32px -8px var(--accent-glow);
+        }
+
+        .card-preview {
+            position: relative;
+            height: 200px;
+            overflow: hidden;
+            background: #000;
+        }
+
+        .card-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.4s ease;
+        }
+
+        .game-card:hover .card-preview img {
+            transform: scale(1.05);
+        }
+
+        .tag-tech {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(9, 10, 15, 0.85);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 6px;
+        }
+
+        .card-content {
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+        }
+
+        .card-title {
+            font-size: 1.35rem;
+            font-weight: 700;
+            margin-bottom: 0.4rem;
+        }
+
+        .card-desc {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            line-height: 1.5;
+            margin-bottom: 1.5rem;
+            flex-grow: 1;
+        }
+
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .author {
+            font-size: 0.85rem;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-muted);
+        }
+
+        .btn-play {
+            background: var(--accent);
+            color: #fff;
+            padding: 0.55rem 1.25rem;
+            font-size: 0.85rem;
+            font-weight: 700;
+            border-radius: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: opacity 0.2s;
+        }
+
+        .game-card:hover .btn-play {
+            opacity: 0.9;
+        }
+
+        /* Coming soon card */
+        .card-disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .card-disabled:hover {
+            transform: none;
+            border-color: var(--border);
+            box-shadow: none;
+        }
+
+        .badge-wip {
+            background: rgba(255, 165, 2, 0.15);
+            color: #ffa502;
+            border: 1px solid rgba(255, 165, 2, 0.4);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 6px;
+        }
+
+        footer {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-family: 'JetBrains Mono', monospace;
+            border-top: 1px solid var(--border);
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-glow"></div>
+
+    <header>
+        <div class="logo-area">
+            <h1>MAESTRO <span>HUB</span></h1>
+            <p>WebAssembly Game Portal // Native in Browser</p>
+        </div>
+        <div class="badge-online">GATEWAY ONLINE</div>
+    </header>
+
+    <main>
+        <div class="section-title">Каталог игр [WASM / WEBGL]</div>
+
+        <div class="games-grid">
+            <!-- Buckshot Roulette -->
+            <a href="/buckshot/" class="game-card">
+                <div class="card-preview">
+                    <img src="/buckshot/buckshot-roulette.png" alt="Buckshot Roulette">
+                    <span class="tag-tech">GODOT 4 • WASM</span>
+                </div>
+                <div class="card-content">
+                    <h2 class="card-title">Buckshot Roulette</h2>
+                    <p class="card-desc">Русская рулетка на дробовиках 12-го калибра в подпольном клубе. Полный порт игры Майка Клубники.</p>
+                    <div class="card-footer">
+                        <span class="author">Mike Klubnika</span>
+                        <span class="btn-play">Играть</span>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Machine Party (В разработке) -->
+            <div class="game-card card-disabled">
+                <div class="card-preview">
+                    <div style="width:100%;height:100%;background:linear-gradient(135deg, #1e2538 0%, #0d1017 100%);display:flex;align-items:center;justify-content:center;color:#4f5874;font-size:2.5rem;font-weight:700;">
+                        MP_01
+                    </div>
+                    <span class="tag-tech" style="top:1rem;right:1rem;">GODOT 4</span>
+                </div>
+                <div class="card-content">
+                    <h2 class="card-title">Machine Party</h2>
+                    <p class="card-desc">Мультиплеерный инди-хоррор. В данный момент адаптируется под сетевой стек браузера.</p>
+                    <div class="card-footer">
+                        <span class="badge-wip">В адаптации</span>
+                        <span class="author">Mike Klubnika</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        MAESTRO HUB &copy; 2026 // Оптимизировано под WebAssembly & Chromium
+    </footer>
+</body>
+</html>
