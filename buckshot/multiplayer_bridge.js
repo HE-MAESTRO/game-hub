@@ -1,95 +1,99 @@
-// WebSocket Multiplayer Bridge for Buckshot Roulette
+// Multiplayer Bridge & Native Menu Injector
 (function() {
-    const WS_URL = "wss://conventions-cabinets-received-hostel.trycloudflare.com";
     let ws = null;
-    let currentRoom = null;
+    let roomCode = null;
     let isHost = false;
 
-    const statusEl = document.getElementById("room-status");
-    const btnCreate = document.getElementById("btn-create-room");
-    const btnJoin = document.getElementById("btn-join-room");
-    const inputCode = document.getElementById("input-room-code");
+    window.addEventListener('DOMContentLoaded', () => {
+        const modal = document.getElementById('game-terminal-modal');
+        const btnCreate = document.getElementById('btn-create-room');
+        const btnJoin = document.getElementById('btn-join-room');
+        const inputCode = document.getElementById('input-room-code');
+        const statusEl = document.getElementById('room-status');
+        const btnClose = document.getElementById('btn-close-modal');
 
-    function connectWS(onOpen) {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            onOpen();
-            return;
+        if (btnClose) btnClose.onclick = () => { modal.style.display = 'none'; };
+
+        // Keyboard shortcut or hook to open multiplayer terminal
+        window.openMultiplayerModal = function() {
+            modal.style.display = 'block';
+        };
+
+        // Inject Native-looking HUD button into bottom left
+        const hudBtn = document.createElement('div');
+        hudBtn.id = 'hud-mp-btn';
+        hudBtn.innerHTML = '⚡ [ MULTIPLAYER PROTOCOL ]';
+        hudBtn.style.cssText = 'position:fixed;bottom:16px;left:16px;z-index:9999;font-family:monospace;font-size:12px;color:#ff2a4b;border:1px solid #ff2a4b;background:rgba(10,12,16,0.85);padding:8px 14px;cursor:pointer;letter-spacing:1px;text-transform:uppercase;box-shadow:0 0 10px rgba(255,42,75,0.3);';
+        hudBtn.onmouseover = () => { hudBtn.style.background = '#ff2a4b'; hudBtn.style.color = '#000'; };
+        hudBtn.onmouseout = () => { hudBtn.style.background = 'rgba(10,12,16,0.85)'; hudBtn.style.color = '#ff2a4b'; };
+        hudBtn.onclick = () => { modal.style.display = 'block'; };
+        document.body.appendChild(hudBtn);
+
+        function connectWS() {
+            if (ws && ws.readyState === WebSocket.OPEN) return;
+            const wsUrl = 'wss://conventions-cabinets-received-hostel.trycloudflare.com';
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                statusEl.innerText = 'ПОДКЛЮЧЕНО К СЕТЕВОМУ ШЛЮЗУ';
+                statusEl.style.color = '#00ff66';
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const msg = JSON.parse(event.data);
+                    handleServerMessage(msg);
+                } catch(e) { console.error(e); }
+            };
+
+            ws.onclose = () => {
+                statusEl.innerText = 'СОЕДИНЕНИЕ ЗАКРЫТО. ПОВТОР...';
+                statusEl.style.color = '#ff4444';
+                setTimeout(connectWS, 2000);
+            };
         }
-        statusEl.innerText = "Подключение к серверу...";
-        ws = new WebSocket(WS_URL);
 
-        ws.onopen = () => {
-            statusEl.innerText = "Соединение установлено";
-            onOpen();
-        };
+        connectWS();
 
-        ws.onmessage = (event) => {
-            const msg = JSON.parse(event.data);
-            handleMessage(msg);
-        };
-
-        ws.onclose = () => {
-            statusEl.innerText = "Отключено от комнат";
-        };
-
-        ws.onerror = (e) => {
-            statusEl.innerText = "Ошибка соединения WS";
-        };
-    }
-
-    function handleMessage(msg) {
-        switch(msg.type) {
-            case "created":
-                currentRoom = msg.code;
-                isHost = true;
-                statusEl.innerHTML = `<b style="color:#00ffcc">Комната: ${msg.code}</b><br>Ждем второго игрока...`;
-                inputCode.value = msg.code;
-                break;
-            case "joined":
-                currentRoom = msg.code;
-                isHost = false;
-                statusEl.innerHTML = `<b style="color:#00ffcc">В комнате: ${msg.code}</b><br>Игра начинается!`;
-                break;
-            case "player_joined":
-                statusEl.innerHTML = `<b style="color:#00ffcc">Игрок подключился!</b><br>Комната ${currentRoom}`;
-                break;
-            case "action":
-                console.log("[Multiplayer Sync]", msg.data);
-                window.dispatchEvent(new CustomEvent("godot_multiplayer_action", { detail: msg.data }));
-                break;
-            case "player_left":
-                statusEl.innerText = "Игрок отключился";
-                break;
-            case "error":
-                statusEl.innerText = "Ошибка: " + msg.message;
-                break;
-        }
-    }
-
-    if (btnCreate) {
         btnCreate.onclick = () => {
-            connectWS(() => {
-                ws.send(JSON.stringify({ type: "create" }));
-            });
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            ws.send(JSON.stringify({ type: 'create' }));
+            statusEl.innerText = 'ГЕНЕРАЦИЯ ЧАСТОТЫ КОМНАТЫ...';
         };
-    }
 
-    if (btnJoin) {
         btnJoin.onclick = () => {
-            const code = inputCode.value.trim();
-            if (!code || code.length !== 4) {
-                statusEl.innerText = "Введите 4-значный код!";
+            const code = inputCode.value.trim().toUpperCase();
+            if (code.length !== 4) {
+                statusEl.innerText = 'ОШИБКА: КОД ДОЛЖЕН БЫТЬ 4 ЗНАКА';
+                statusEl.style.color = '#ff4444';
                 return;
             }
-            connectWS(() => {
-                ws.send(JSON.stringify({ type: "join", code: code }));
-            });
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            ws.send(JSON.stringify({ type: 'join', code: code }));
+            statusEl.innerText = 'ПОДКЛЮЧЕНИЕ К ЧАСТОТЕ ' + code + '...';
         };
-    }
 
-    window.sendGodotAction = function(actionData) {
-        if (ws && ws.readyState === WebSocket.OPEN && currentRoom) {
-            ws.send(JSON.stringify({ type: "action", data: actionData }));
+        function handleServerMessage(msg) {
+            switch(msg.type) {
+                case 'created':
+                    roomCode = msg.code;
+                    isHost = true;
+                    statusEl.innerText = 'ЧАСТОТА: [' + roomCode + '] — ОЖИДАНИЕ ВТОРОГО ИГРОКА...';
+                    statusEl.style.color = '#ffaa00';
+                    break;
+                case 'start':
+                    statusEl.innerText = 'КАНАЛ СВЯЗИ УСТАНОВЛЕН! МАТЧ 1 НА 1';
+                    statusEl.style.color = '#00ff66';
+                    setTimeout(() => { modal.style.display = 'none'; }, 1500);
+                    break;
+                case 'action':
+                    console.log('Opponent action received:', msg.data);
+                    break;
+                case 'error':
+                    statusEl.innerText = 'ОШИБКА: ' + msg.message;
+                    statusEl.style.color = '#ff4444';
+                    break;
+            }
         }
-    };
+    });
 })();
