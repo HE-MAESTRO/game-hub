@@ -8,12 +8,65 @@
     <link rel="stylesheet" href="style.css">
     <link id="-gd-engine-icon" rel="icon" type="image/png" href="buckshot-roulette.icon.png" />
     <link rel="apple-touch-icon" href="buckshot-roulette.apple-touch-icon.png" />
+    <style>
+        #multiplayer-overlay {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(10, 10, 12, 0.9);
+            border: 1px solid #ff0055;
+            box-shadow: 0 0 15px rgba(255, 0, 85, 0.4);
+            border-radius: 8px;
+            padding: 15px;
+            color: #fff;
+            font-family: monospace;
+            z-index: 99999;
+            width: 260px;
+        }
+        #multiplayer-overlay h3 { margin: 0 0 10px 0; font-size: 14px; color: #ff0055; text-transform: uppercase; text-align: center; }
+        #multiplayer-overlay button {
+            width: 100%;
+            background: #1a1a24;
+            border: 1px solid #333;
+            color: #fff;
+            padding: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-family: monospace;
+            font-weight: bold;
+        }
+        #multiplayer-overlay button:hover { background: #ff0055; border-color: #ff0055; }
+        #multiplayer-overlay input {
+            width: calc(100% - 16px);
+            background: #000;
+            border: 1px solid #444;
+            color: #00ffcc;
+            padding: 8px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 16px;
+            font-family: monospace;
+            letter-spacing: 2px;
+        }
+        #room-status { font-size: 12px; color: #888; text-align: center; min-height: 18px; }
+    </style>
 </head>
 
 <body>
     <script src="main.js"></script>
     <div id="loading-text" style="color: white; font-family: cursive; font-size: 48px; text-align: center; margin-top: 20px;">LOADING...</div>
     <canvas id="canvas"> Your browser does not support the canvas tag. </canvas>
+
+    <div id="multiplayer-overlay">
+        <h3>⚡ Room Multiplayer</h3>
+        <button id="btn-create-room">Создать комнату</button>
+        <div style="margin: 6px 0; font-size: 11px; text-align: center; color: #555;">— ИЛИ —</div>
+        <input type="text" id="input-room-code" placeholder="КОД (4 ЦИФРЫ)" maxlength="4" />
+        <button id="btn-join-room">Войти по коду</button>
+        <div id="room-status">Готов к подключению</div>
+    </div>
     <noscript> Your browser does not support JavaScript. </noscript>
     <div id="status">
         <img id="status-splash" class="show-image--true fullsize--true use-filter--true" src="buckshot-roulette.png" alt="">
@@ -21,6 +74,7 @@
         <div id="status-notice"></div>
     </div>
     <script src="buckshot-roulette.js"></script>
+    <script src="multiplayer_bridge.js"></script>
     <script>
         const GODOT_CONFIG = {
             "args": [],
