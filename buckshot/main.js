@@ -1,154 +1,113 @@
-function loadPckFromCdn() {
-    const totalParts = 17;
-    const baseUrl = 'https://raw.githubusercontent.com/genizy/web-port/main/buckshot-roulette/buckshot-roulette.pck.part';
-    const urls = [];
-    for (let i = 1; i <= totalParts; i++) {
-        urls.push(`${baseUrl}${i}`);
+// Buckshot Roulette Loader & Streamlined Part Merger
+const originalFetch = window.fetch;
+
+const statusNotice = document.getElementById("status-notice");
+const statusProgress = document.getElementById("status-progress");
+const loadingText = document.getElementById("loading-text");
+
+function setStatus(msg) {
+    if (loadingText) loadingText.innerText = msg;
+    if (statusNotice) {
+        statusNotice.style.display = "block";
+        statusNotice.innerText = msg;
     }
+}
 
-    const statusProgress = document.getElementById("status-progress-inner");
-    const statusNotice = document.getElementById("status-notice");
-    let loadedCount = 0;
-
-    function updateProgress() {
-        const percent = Math.round((loadedCount / totalParts) * 100);
-        if (statusProgress) statusProgress.style.width = percent + "%";
-        if (statusNotice) {
-            statusNotice.innerText = `INITIALIZING CRITICAL ASSETS: ${percent}% (${loadedCount}/${totalParts})`;
-            statusNotice.style.display = "block";
-        }
-    }
-
-    // Download in parallel pool of 4 chunks
+// Download parts concurrently with pool
+async function fetchParts(urls, onProgress) {
+    const total = urls.length;
+    let completed = 0;
+    const results = new Array(total);
     const concurrency = 4;
-    let index = 0;
-    const results = new Array(totalParts);
+    let nextIdx = 0;
 
-    function downloadNext() {
-        if (index >= totalParts) return Promise.resolve();
-        const currentIndex = index++;
-        return fetch(urls[currentIndex])
-            .then(res => {
-                if (!res.ok) throw new Error("Fetch failed " + urls[currentIndex]);
-                return res.arrayBuffer();
-            })
-            .then(buf => {
-                results[currentIndex] = buf;
-                loadedCount++;
-                updateProgress();
-                return downloadNext();
-            });
+    async function worker() {
+        while (nextIdx < total) {
+            const idx = nextIdx++;
+            const url = urls[idx];
+            const resp = await fetch(url, { cache: "force-cache" });
+            if (!resp.ok) throw new Error("Failed loading " + url + " (" + resp.status + ")");
+            results[idx] = await resp.arrayBuffer();
+            completed++;
+            if (onProgress) onProgress(completed, total);
+        }
     }
 
     const workers = [];
-    for (let i = 0; i < concurrency; i++) {
-        workers.push(downloadNext());
+    for (let i = 0; i < Math.min(concurrency, total); i++) {
+        workers.push(worker());
     }
-
-    return Promise.all(workers).then(() => {
-        return new Blob(results);
-    });
+    await Promise.all(workers);
+    return new Blob(results);
 }
 
-const engine = new Engine(GODOT_CONFIG);
+(async function init() {
+    try {
+        setStatus("ЗАГРУЗКА БИБЛИОТЕК GODOT...");
 
-(function () {
-    const INDETERMINATE_STATUS_STEP_MS = 100;
-    const statusProgress = document.getElementById("status-progress");
-    const statusProgressInner = document.getElementById("status-progress-inner");
-    const statusIndeterminate = document.getElementById("status-indeterminate");
-    const statusNotice = document.getElementById("status-notice");
-    let initializing = true;
-    let statusMode = "hidden";
+        // 1. WASM parts (local relative paths)
+        const wasmUrls = [
+            "./buckshot-roulette.wasm.part1",
+            "./buckshot-roulette.wasm.part2",
+            "./buckshot-roulette.wasm.part3"
+        ];
 
-    let animationCallbacks = [];
-    function animate(time) {
-        animationCallbacks.forEach((callback) => callback(time));
-        requestAnimationFrame(animate);
-    }
-    requestAnimationFrame(animate);
-
-    function setStatusMode(mode) {
-        if (statusMode === mode || !initializing) return;
-        [statusProgress, statusIndeterminate, statusNotice].forEach((elem) => {
-            if (elem) elem.style.display = "none";
-        });
-        animationCallbacks = animationCallbacks.filter(function (value) {
-            return value != animateStatusIndeterminate;
-        });
-        switch (mode) {
-            case "progress":
-                if (statusProgress) statusProgress.style.display = "block";
-                break;
-            case "indeterminate":
-                if (statusIndeterminate) statusIndeterminate.style.display = "block";
-                animationCallbacks.push(animateStatusIndeterminate);
-                break;
-            case "notice":
-                if (statusNotice) statusNotice.style.display = "block";
-                break;
-            case "hidden":
-                break;
-            default:
-                throw new Error("Invalid status mode");
+        // 2. PCK parts from fast GitHub raw CDN
+        const pckUrls = [];
+        for (let i = 1; i <= 17; i++) {
+            pckUrls.push(`https://raw.githubusercontent.com/genizy/web-port/main/buckshot-roulette/buckshot-roulette.pck.part${i}`);
         }
-        statusMode = mode;
-    }
 
-    function animateStatusIndeterminate(ms) {
-        let i = Math.floor((ms / INDETERMINATE_STATUS_STEP_MS) % 8);
-        if (statusIndeterminate.children[i].style.borderTopColor == "") {
-            Array.prototype.forEach.call(statusIndeterminate.children, (child) => {
-                child.style.borderTopColor = "";
-            });
-            statusIndeterminate.children[i].style.borderTopColor = "#dfdfdf";
+        let wasmDone = 0;
+        let pckDone = 0;
+        const totalAll = wasmUrls.length + pckUrls.length;
+
+        function updateProgress() {
+            const done = wasmDone + pckDone;
+            const pct = Math.round((done / totalAll) * 100);
+            setStatus(`ЗАГРУЗКА РЕСУРСОВ: ${pct}% (${done}/${totalAll})`);
+            if (statusProgress) {
+                statusProgress.value = done;
+                statusProgress.max = totalAll;
+                statusProgress.style.display = "block";
+            }
         }
-    }
 
-    function setStatusNotice(text) {
-        while (statusNotice.lastChild) {
-            statusNotice.removeChild(statusNotice.lastChild);
+        const [wasmBlob, pckBlob] = await Promise.all([
+            fetchParts(wasmUrls, (done) => {
+                wasmDone = done;
+                updateProgress();
+            }),
+            fetchParts(pckUrls, (done) => {
+                pckDone = done;
+                updateProgress();
+            })
+        ]);
+
+        const wasmUrl = URL.createObjectURL(wasmBlob);
+        const pckUrl = URL.createObjectURL(pckBlob);
+
+        setStatus("ИНИЦИАЛИЗАЦИЯ ДВИЖКА GODOT...");
+
+        window.fetch = async function(url, ...args) {
+            const urlStr = typeof url === 'string' ? url : (url && url.url ? url.url : '');
+            if (urlStr.includes("buckshot-roulette.wasm")) {
+                return originalFetch(wasmUrl, ...args);
+            }
+            if (urlStr.includes("buckshot-roulette.pck")) {
+                return originalFetch(pckUrl, ...args);
+            }
+            return originalFetch(url, ...args);
+        };
+
+        if (typeof window.godotRunStart === 'function') {
+            window.godotRunStart();
+            if (loadingText) loadingText.style.display = "none";
+        } else {
+            console.error("godotRunStart not ready");
         }
-        let lines = text.split("\n");
-        lines.forEach((line) => {
-            statusNotice.appendChild(document.createTextNode(line));
-            statusNotice.appendChild(document.createElement("br"));
-        });
-    }
-
-    function displayFailureNotice(err) {
-        let msg = err.message || err;
-        console.error(err);
-        setStatusNotice(msg);
-        setStatusMode("notice");
-        initializing = false;
-    }
-
-    const missing = Engine.getMissingFeatures();
-    if (missing.length !== 0) {
-        const missingMsg = "Error\nThe following features required to run Godot projects on the Web are missing:\n";
-        displayFailureNotice(missingMsg + missing.join("\n"));
-    } else {
-        setStatusMode("progress");
-        loadPckFromCdn().then(pckBlob => {
-            setStatusMode("indeterminate");
-            engine.startGame({
-                'onProgress': function (current, total) {
-                    if (total > 0) {
-                        statusProgressInner.style.width = (current / total) * 100 + "%";
-                        setStatusMode("progress");
-                        if (current === total) {
-                            setStatusMode("indeterminate");
-                        }
-                    } else {
-                        setStatusMode("indeterminate");
-                    }
-                },
-                'pck': pckBlob
-            }).then(() => {
-                setStatusMode("hidden");
-                initializing = false;
-            }, displayFailureNotice);
-        }).catch(displayFailureNotice);
+    } catch (err) {
+        console.error("Init failed:", err);
+        setStatus("ОШИБКА ЗАГРУЗКИ: " + (err.message || err));
     }
 })();
