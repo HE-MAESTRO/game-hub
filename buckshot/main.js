@@ -1,6 +1,6 @@
 function loadPckFromCdn() {
     const totalParts = 17;
-    const baseUrl = 'https://cdn.jsdelivr.net/gh/genizy/web-port@main/buckshot-roulette/buckshot-roulette.pck.part';
+    const baseUrl = 'https://raw.githubusercontent.com/genizy/web-port/main/buckshot-roulette/buckshot-roulette.pck.part';
     const urls = [];
     for (let i = 1; i <= totalParts; i++) {
         urls.push(`${baseUrl}${i}`);
